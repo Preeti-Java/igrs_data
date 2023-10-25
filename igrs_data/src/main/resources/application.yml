@@ -1,0 +1,70 @@
+server:
+  port: 8083
+  error:
+    include-stacktrace: never
+    path: never
+  
+  
+spring:
+  devtools:
+    restart:
+      enabled: true
+
+
+
+  main:
+    allow-bean-definition-overriding: true
+    allow-circular-references : true
+  application:
+    name: IGRSDATA-SERVICE-PREETI
+
+    
+  jpa:
+    hibernate:
+      ddl-auto: update
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+    show-sql: true
+    properties:
+      hibernate:
+       dialect: org.hibernate.dialect.MySQL5Dialect
+       
+       
+
+  ribbon: 
+    ConnectTimeout: 3000
+    ReadTimeout: 60000   
+    
+  #seaching database configuration
+  datasource:
+    url: jdbc:mysql://localhost:3306/igrsdata
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver   
+    
+    
+#logging:
+#  level:
+#    org:
+     # springframework:
+     #  security : DEBUG
+ #     hibernate:
+  #      SQL: DEBUG
+       # type:
+        #  descriptor:
+         #   sql:
+         #     BasicBinder : TRACE
+
+
+eureka:
+  instance:
+    prefer-ip-address: false
+  client:
+      fetch-registry: true
+      register-with-eureka: true
+      serviceUrl:
+         defaultZone: http://Ankush:Neel123@192.168.1.60:8761/eureka       
+
+  
+                                  
+   

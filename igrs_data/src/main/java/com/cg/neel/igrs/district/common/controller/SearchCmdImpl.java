@@ -92,17 +92,6 @@ public class SearchCmdImpl implements SearchCmd{
 		}
 	}
 
-	/*
-	 * @Override public ResponseEntity<List<Map<String, String>>>
-	 * advanceSearch(Map<String, String> map) { // Check Map key have value boolean
-	 * allValuesValid = map.values().stream().allMatch(value -> value != null &&
-	 * !value.isEmpty()); if(!allValuesValid || map.size() < 3) throw new
-	 * SearchingCredentialException("Missing value"); if(map.size() < 3) throw new
-	 * SearchingCredentialException("less than 4 value selected");
-	 * List<Map<String,String>> responseData = searchService.globalSearch(map);
-	 * return ResponseEntity.ok().body(responseData); }
-	 */
-
 	@Override
 	public ResponseEntity<List<Map<String, String>>> advanceSearch(GlobalSearchAccessBean data) {
 		 List<Map<String,String>> responseData = globalSearchService.globalSearch(data);

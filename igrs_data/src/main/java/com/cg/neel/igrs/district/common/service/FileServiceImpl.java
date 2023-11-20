@@ -3,6 +3,7 @@
  */
 package com.cg.neel.igrs.district.common.service;
 
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -13,14 +14,16 @@ import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.List;
 import java.util.Map;
 
+import javax.imageio.ImageIO;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.apache.pdfbox.multipdf.Splitter;
 import org.apache.pdfbox.pdmodel.PDDocument;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.springframework.data.domain.Page;
 import org.springframework.data.repository.Repository;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -30,6 +33,7 @@ import org.springframework.stereotype.Service;
 
 import com.cg.neel.igrs.district.help.RepositoryFileIdFactory;
 import com.cg.neel.igrs.exceptions.SearchingCredentialException;
+import com.cg.neel.igrs.utils.DataUtils;
 import com.lowagie.text.Document;
 import com.lowagie.text.DocumentException;
 import com.lowagie.text.Element;
@@ -57,7 +61,6 @@ import lombok.extern.slf4j.Slf4j;
 public class FileServiceImpl implements FileService{
 	
 	private static final String FILE_CODE = "filecode";
-	private static final String DISTRICT = "district";
 	private static final String PDF_EXTENSION = ".pdf";
 	
 	//Bean and Repo
@@ -75,15 +78,16 @@ public class FileServiceImpl implements FileService{
 	
 	
 	private final RepositoryFileIdFactory repositoryFileIdFactory;
+	private final DataUtils dataUtils;
+	
 
 	@Override
 	public ResponseEntity<byte[]> getFirstPageForPreview(Map<String, String> map,HttpServletRequest request, HttpServletResponse response) {
 		
 		String filecode = map.get(FILE_CODE);
-		String district = map.get(DISTRICT);
 		
 		//Get location for file
-		Object location = getLocationOfFile(filecode,district);
+		Object location = getLocationOfFile(filecode);
 		
 		if(location == null)
 			throw new SearchingCredentialException(FILE_LOCATION_IS_EMPTY);
@@ -94,16 +98,16 @@ public class FileServiceImpl implements FileService{
 		
 		String webLocation = request.getServletContext().getRealPath("/") +"staticResources/pdfs/";
 		
-		//Create a copy in web-location + Split PDF and get 1st page
-		File isCopyCreated = copyInWebLocation(file,webLocation,filecode);
+		//Create a copy in web-location + Split PDF and get 1st page, convert into image
+		copyInWebLocation(file,webLocation,filecode);
 		
 		//convert file into byte[]
-		byte[] pdfData = convertFileIntoByteArray(isCopyCreated);
+	//	byte[] pdfData = convertFileIntoByteArray(isCopyCreated);
 		
-		HttpHeaders headers = setHttpHeaders(file.getName());
+		//HttpHeaders headers = setHttpHeaders(file.getName());
 		
 		//set Response HttpHeaders
-		return new ResponseEntity<>(pdfData, headers, HttpStatus.OK);
+		return new ResponseEntity<>(HttpStatus.OK);
  }
 
 	/**
@@ -112,7 +116,7 @@ public class FileServiceImpl implements FileService{
 	 * @param filecode 
 	 * @return
 	 */
-	private File copyInWebLocation(File file, String webLocation, String filecode) {
+	private void copyInWebLocation(File file, String webLocation, String filecode) {
 		// copy PDF file in to static resource
 		
 		File staticFilePath = new File(webLocation);
@@ -138,33 +142,23 @@ public class FileServiceImpl implements FileService{
 	    
 	    try {
 			PDDocument document = PDDocument.load(webLocationFile);
-			// Splitter Class
-	        Splitter splitting = new Splitter();
 	  
-	        // Splitting the pages into multiple PDFs
-	        PDDocument Page = splitting.split(document).get(0);
+	    	List<PDPage> pages = document.getDocumentCatalog().getAllPages();
 	        
-	        String pdfNew =  webLocation  + filecode + "@1.pdf";
+	        String imgPath =  webLocation  + filecode + "@1.png";
 	  
-	        Page.save(pdfNew);
+			File outPutFile = new File(imgPath);
+			BufferedImage bImage =  pages.get(0).convertToImage();
+			ImageIO.write(bImage, "png", outPutFile);
 	        
 	        //Add water-marks on PDF
-	        addWaterMarks(webLocation,filecode);
+	        //addWaterMarks(webLocation,filecode);
 	        
-	        Page.close();
 	        document.close();
-	        
-	        if(new File(pdfNew).exists())
-	        	return new File(pdfNew);
-	        
-	     
-	        
-	       
 	        
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		return webLocationFile;
 		
 	}
 
@@ -258,7 +252,10 @@ public class FileServiceImpl implements FileService{
 	 * @param district
 	 * @return location of file
 	 */
-	private Object getLocationOfFile(String fileCode, String districtName) {
+	private Object getLocationOfFile(String fileCode) {
+		//District Name by fileId
+		String districtName = dataUtils.districtNameByFileId(fileCode);
+		
 		//Get repository by district
 		Repository<?, ?> repository = repositoryFileIdFactory.getFileIdRepository(districtName +FILEID_REPO);
 		

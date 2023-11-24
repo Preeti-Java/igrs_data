@@ -7,8 +7,6 @@ import javax.persistence.Column;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import javax.persistence.Inheritance;
-import javax.persistence.InheritanceType;
 import javax.persistence.MappedSuperclass;
 
 import com.cg.neel.igrs.district.fileid.BalodFileIdAccessBean;
@@ -48,15 +46,15 @@ import lombok.Setter;
 @MappedSuperclass
 @Getter
 @Setter
-@AllArgsConstructor
 @NoArgsConstructor
-@Inheritance(strategy=InheritanceType.SINGLE_TABLE)
+@AllArgsConstructor
+//@Inheritance(strategy=InheritanceType.SINGLE_TABLE)
 @JsonTypeInfo(use=JsonTypeInfo.Id.NAME,
 include=JsonTypeInfo.As.EXISTING_PROPERTY,
 property="type")
 @JsonSubTypes({
-	@JsonSubTypes.Type(value = BalodaBazarFileIdAccessBean.class, name = "BalodaBazarFileId"),
 	@JsonSubTypes.Type(value = BalodFileIdAccessBean.class , name = "BalodFileId"),
+	@JsonSubTypes.Type(value = BalodaBazarFileIdAccessBean.class, name = "BalodaBazarFileId"),
 	@JsonSubTypes.Type(value = BastarFileIdAccessBean.class , name = "BastarFileId"),
 	@JsonSubTypes.Type(value = BemetaraFileIdAccessBean.class , name = "BemetaraFileId"),
 	@JsonSubTypes.Type(value = BilaspurFileIdAccessBean.class , name = "BilaspurFileId"),

@@ -20,9 +20,16 @@ import org.springframework.web.bind.annotation.RequestParam;
 @RequestMapping("/default")
 public interface FileCmd {
 	
-	@GetMapping("/preview")
+	@GetMapping(   )
 	public ResponseEntity<byte[]> getPreview(@RequestParam final Map<String,String> map,
 			HttpServletRequest request,
 			HttpServletResponse response);
+	
+	@GetMapping("/download")
+	public ResponseEntity<byte[]> downloadDeed(@RequestParam final Map<String,String> map,
+			HttpServletRequest request,
+			HttpServletResponse response
+			);
+	
 	
 }

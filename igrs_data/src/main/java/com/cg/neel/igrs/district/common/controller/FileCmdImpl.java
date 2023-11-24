@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.cg.neel.igrs.district.common.service.FileService;
 import com.cg.neel.igrs.exceptions.SearchingCredentialException;
+import com.cg.neel.igrs.utils.UserUtils;
 
 /**
  * @author Preeti
@@ -40,5 +41,19 @@ public class FileCmdImpl implements FileCmd{
 			throw new SearchingCredentialException(SOMETHING_ISSUE);
 		return fileService.getFirstPageForPreview(map,request,response);
 	}
+
+	@Override
+	public ResponseEntity<byte[]> downloadDeed(Map<String, String> map, HttpServletRequest request,
+			HttpServletResponse response) {
+		//check map key have values
+		boolean check = map.values().stream().allMatch(value -> value!= null && !value.isEmpty());
+		if(!check)
+			throw new SearchingCredentialException(SOMETHING_ISSUE);
+		//Get User-Id
+		Long userId = UserUtils.getUserDetails();
+		return fileService.downloadDeed(map,userId);
+	}
+	
+	
 	
 }

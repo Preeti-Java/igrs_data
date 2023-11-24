@@ -5,7 +5,6 @@ package com.cg.neel.igrs.district.common.service;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -21,18 +20,18 @@ import javax.imageio.ImageIO;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.pdfbox.exceptions.COSVisitorException;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
-import org.springframework.data.domain.Page;
+import org.apache.pdfbox.util.Splitter;
 import org.springframework.data.repository.Repository;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import com.cg.neel.igrs.district.help.RepositoryFileIdFactory;
 import com.cg.neel.igrs.exceptions.SearchingCredentialException;
+import com.cg.neel.igrs.payment.PaymentService;
 import com.cg.neel.igrs.utils.DataUtils;
 import com.lowagie.text.Document;
 import com.lowagie.text.DocumentException;
@@ -72,13 +71,12 @@ public class FileServiceImpl implements FileService{
 	//Error
 	private static final String FILE_LOCATION_IS_EMPTY = "File location is empty";
 	private static final String PDF_NOT_FOUND_IN_LOCATION = "PDF not found in location";
-	private static final String PDF_HAVE_NO_BYTE = "pdf have no byte";
-	private static final String SOMETHING_ISSUE = "Something Issue";
 	
 	
 	
 	private final RepositoryFileIdFactory repositoryFileIdFactory;
 	private final DataUtils dataUtils;
+	private final PaymentService paymentService;
 	
 
 	@Override
@@ -101,10 +99,17 @@ public class FileServiceImpl implements FileService{
 		//Create a copy in web-location + Split PDF and get 1st page, convert into image
 		copyInWebLocation(file,webLocation,filecode);
 		
-		//convert file into byte[]
-	//	byte[] pdfData = convertFileIntoByteArray(isCopyCreated);
-		
-		//HttpHeaders headers = setHttpHeaders(file.getName());
+		//delete copy
+		File file1 = new File(webLocation.toString() + filecode + PDF_EXTENSION);
+		if(file1.exists())
+			file1.delete();
+		File file2 = new File(webLocation.toString() + filecode+ "@" + PDF_EXTENSION);
+		if(file2.exists())
+			file2.delete();
+		File file3 = new File(webLocation.toString() + filecode+ "@1" + PDF_EXTENSION);
+		if(file3.exists())
+			file3.delete();
+				
 		
 		//set Response HttpHeaders
 		return new ResponseEntity<>(HttpStatus.OK);
@@ -142,17 +147,36 @@ public class FileServiceImpl implements FileService{
 	    
 	    try {
 			PDDocument document = PDDocument.load(webLocationFile);
+			// Splitter Class
+	        Splitter splitting = new Splitter();
 	  
-	    	List<PDPage> pages = document.getDocumentCatalog().getAllPages();
+	        // Splitting the pages into multiple PDFs
+	        PDDocument page = splitting.split(document).get(0);
+	        String pdfNew =  webLocation  + filecode + "@1.pdf";
+	  	  
+	        try {
+				page.save(pdfNew);
+			} catch (COSVisitorException e) {
+				e.printStackTrace();
+			}
+			
+	        //Add water-marks on PDF
+		     addWaterMarks(webLocation,filecode);
 	        
-	        String imgPath =  webLocation  + filecode + "@1.png";
-	  
+		     
+		     //convert pdf to png
+		     String pdfBookmarkNew =  webLocation  + filecode + "@.pdf";
+	        PDDocument pdfDoc = PDDocument.load(pdfBookmarkNew);
+	    	List<PDPage> pages = pdfDoc.getDocumentCatalog().getAllPages();
+	        
+	      
+	     
+			
+	       String imgPath =  webLocation  + filecode + "@.png";
 			File outPutFile = new File(imgPath);
+			   
 			BufferedImage bImage =  pages.get(0).convertToImage();
 			ImageIO.write(bImage, "png", outPutFile);
-	        
-	        //Add water-marks on PDF
-	        //addWaterMarks(webLocation,filecode);
 	        
 	        document.close();
 	        
@@ -179,7 +203,7 @@ public class FileServiceImpl implements FileService{
 		Document document=new Document();
 		PdfWriter pdfWriter = null;
 		try {
-			pdfWriter = PdfWriter.getInstance(document,new FileOutputStream(webLocation+file));
+			pdfWriter = PdfWriter.getInstance(document,new FileOutputStream(webLocation+file+"@.pdf"));
 		} catch (FileNotFoundException | DocumentException e) {
 			e.printStackTrace();
 		} 
@@ -191,61 +215,18 @@ public class FileServiceImpl implements FileService{
 		Phrase waterMark=new Phrase("Only For Default Purpose",font);
 		PdfGState pdfGS=new PdfGState();
 		pdfGS.setFillOpacity(0.5f);
-		for(int i=1;i<=pdfReader.getNumberOfPages();i++)
-		{
-			page=pdfWriter.getImportedPage(pdfReader,i);
+			page=pdfWriter.getImportedPage(pdfReader,1);
 			pdfContent.addTemplate(page,0.0F,0.0F);
 			pdfContent.saveState();
 			pdfContent.setGState(pdfGS);
 			ColumnText.showTextAligned(pdfContent,Element.ALIGN_CENTER,waterMark,297,470,45);
 			pdfContent.restoreState();
-			if(i!=pdfReader.getNumberOfPages())
-				document.setPageSize(pdfReader.getPageSize(i+1));
 			document.newPage();
-		}
 		document.close();
 		pdfReader.close();
 		return waterMarkedPath;
 	}
 
-	/**
-	 * @param pdfData
-	 * @param fileName 
-	 * @return HttpHeaders
-	 */
-	private HttpHeaders setHttpHeaders(String fileName) {
-		HttpHeaders httpHeaders = new HttpHeaders();
-		httpHeaders.setContentType(MediaType.APPLICATION_PDF);
-		httpHeaders.setContentDispositionFormData(fileName, fileName);
-		httpHeaders.setCacheControl("must-revalidate, post-check=0, pre-check=0");
-		return httpHeaders;
-	}
-
-	/**
-	 * @param file
-	 * @return byte[]
-	 */
-	private byte[] convertFileIntoByteArray(File file) {
-		byte[] pdfData = {};
-		try (FileInputStream fileInputStream = new FileInputStream(file)) {
-			try {
-				pdfData = new byte[fileInputStream.available()];
-				while (fileInputStream.read(pdfData) == -1) {
-					throw new SearchingCredentialException(PDF_HAVE_NO_BYTE);
-				}
-			} catch (IOException e) {
-				throw new SearchingCredentialException(SOMETHING_ISSUE + e);
-			}
-			fileInputStream.close();
-			
-		} catch (FileNotFoundException e) {
-			throw new SearchingCredentialException(SOMETHING_ISSUE + e);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		
-		return pdfData;
-	}
 
 	/**
 	 * @param filecode
@@ -280,6 +261,20 @@ public class FileServiceImpl implements FileService{
 		} 
 		
 		return result1;
+	}
+
+	@Override
+	public ResponseEntity<byte[]> downloadDeed(Map<String, String> map,Long userId) {
+		//Check this fileId payment status is paid or not
+		
+		String fileId = map.get("fileCode");
+		
+		//Get Transaction data by userId and fileId
+		//Use Micro-service
+		boolean flag = paymentService.checkStatusByFileIdAndUserId(fileId,userId);
+		
+		
+		return null;
 	}
 	
 	

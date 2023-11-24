@@ -23,5 +23,12 @@ public interface FileService {
 	 */
 	ResponseEntity<byte[]> getFirstPageForPreview(Map<String, String> map, HttpServletRequest request, HttpServletResponse response);
 
+	/**
+	 * @param map
+	 * @param userId 
+	 * @return
+	 */
+	ResponseEntity<byte[]> downloadDeed(Map<String, String> map, Long userId);
+
 
 }

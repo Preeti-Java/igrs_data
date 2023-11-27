@@ -12,12 +12,15 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.springframework.security.authentication.BadCredentialsException;
+import org.apache.commons.lang.StringUtils;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
+
+import com.cg.neel.igrs.exceptions.BadCredentialsException;
+import com.cg.neel.igrs.spring.config.IgrsUser;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -34,25 +37,34 @@ public class JwtTokenValidatorFilter extends OncePerRequestFilter{
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
 			throws ServletException, IOException {
+
 		String jwt = request.getHeader(SecurityConstants.JWT_HEADER);
-		if(null != jwt) {
+		if (StringUtils.isNotEmpty(jwt)) {
+			if(jwt.split(" ").length > 1)
+		    	jwt = jwt.split(" ")[0];
 			try {
 				// for retrieving any information from token we will need the secret key
 				Claims claims = getAllClaimsFromToken(jwt);
 				
 				String username = String.valueOf(claims.get("username"));
 				String authorities = String.valueOf(claims.get("authorities"));
-				Authentication authentication = new UsernamePasswordAuthenticationToken(username, null, AuthorityUtils.commaSeparatedStringToAuthorityList(authorities));
+				String userId = String.valueOf(claims.get("userId"));
+				
+				IgrsUser igrsUser=new IgrsUser();
+				igrsUser.setUserId(userId);
+				igrsUser.setUsername(username);
+				
+				Authentication authentication = new UsernamePasswordAuthenticationToken(igrsUser,null,
+						AuthorityUtils.commaSeparatedStringToAuthorityList(authorities));
 				SecurityContextHolder.getContext().setAuthentication(authentication);
 				
-			}
-			catch(Exception e) {
+			} catch (Exception e) {
 				throw new BadCredentialsException("Invalid/Expired Token Received");
 			}
 		}
-		filterChain.doFilter(request, response);
-		
-	}
+	filterChain.doFilter(request, response);
+
+}
 	
 	// for retrieving any information from token we will need the secret key
 		private Claims getAllClaimsFromToken(String token) {
